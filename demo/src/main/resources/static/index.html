@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Penguin Project - Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #f3f6fd;
+            --sidebar-bg: #ffffff;
+            --primary-color: #3f7afc;
+            --text-main: #333333;
+            --text-sub: #888888;
+            --border-color: #eeeeee;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', 'Nanum Gothic', sans-serif; }
+        body { background-color: var(--bg-color); height: 100vh; overflow: hidden; position: relative; }
+
+        .app-container { display: flex; height: 100%; }
+
+        /* 사이드바 */
+        .sidebar { width: 260px; background-color: var(--sidebar-bg); height: 100%; display: flex; flex-direction: column; padding: 20px 0; border-right: 1px solid var(--border-color); transition: all 0.3s ease; }
+        .sidebar-logo { padding: 20px 30px; font-size: 20px; font-weight: 600; color: #4A81FF; display: flex; align-items: center; gap: 10px; }
+        .sidebar-nav { flex-grow: 1; margin-top: 20px; }
+        .nav-item { padding: 15px 30px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 15px; cursor: pointer; transition: 0.2s; border-left: 3px solid transparent; }
+        .nav-item i { font-size: 18px; width: 20px; text-align: center; }
+        .nav-item:hover { background-color: #f0f4ff; color: var(--primary-color); }
+        .nav-item.active { background-color: #eaf0ff; color: var(--primary-color); font-weight: 600; border-left-color: var(--primary-color); }
+
+        .main-content { flex-grow: 1; height: 100%; overflow-y: auto; display: flex; justify-content: center; align-items: center; padding: 40px; position: relative; }
+
+        .box { background: white; border: 1px solid var(--border-color); padding: 40px; border-radius: 12px; width: 440px; box-shadow: 0 10px 25px rgba(0,0,0,0.03); transition: all 0.3s; }
+        .list-box { width: 700px; max-height: 90vh; overflow-y: auto; }
+        .hidden { display: none !important; }
+
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: inline-block; width: 100px; font-weight: bold; color: var(--text-main); font-size: 14px;}
+        .input-group input { width: calc(100% - 110px); padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; }
+        .input-group input:focus { border-color: var(--primary-color); outline: none; }
+
+        button { cursor: pointer; padding: 12px; background-color: var(--primary-color); color: white; border: none; border-radius: 6px; font-weight: bold; width: 100%; margin-bottom: 10px; font-size: 15px; transition: 0.2s; }
+        button:hover { background-color: #3468df; }
+        button.secondary { background-color: #eff2f6; color: #555; }
+        button.secondary:hover { background-color: #e2e6ea; }
+        button.action { background-color: #28a745; }
+        button.action:hover { background-color: #218838; }
+
+        hr { margin: 25px 0; border: 0; border-top: 1px solid var(--border-color); }
+        h2 { text-align: center; margin-bottom: 30px; font-weight: 600; }
+
+        .chart-wrapper { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 25px; }
+        .chart-wrapper h3 { text-align: center; margin-bottom: 15px; color: #495057; font-size: 16px; }
+
+        .penguin-card { border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; background-color: #fafbfc; }
+        .penguin-card p { font-size: 14px; color: #555; margin-bottom: 5px; }
+        .penguin-card strong { color: var(--text-main); }
+        .card-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .card-actions button { padding: 8px; font-size: 13px; margin: 0; }
+
+        /* 커스텀 모달 스타일 */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; transition: opacity 0.3s; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: popIn 0.3s ease-out; }
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-content h3 { margin-bottom: 15px; color: var(--text-main); font-size: 20px; }
+        .modal-content p { font-size: 14px; color: #555; margin-bottom: 20px; line-height: 1.6; }
+        .modal-content .highlight { color: #fd7e14; font-weight: bold; font-size: 16px; }
+        .modal-content input { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid var(--border-color); border-radius: 8px; text-align: center; font-size: 18px; font-weight: bold; outline: none; transition: 0.2s; }
+        .modal-content input:focus { border-color: #fd7e14; }
+        .modal-actions { display: flex; gap: 10px; }
+        .modal-actions button { margin-bottom: 0; }
+
+        /* 상단 상태바 디자인 */
+        .top-status-bar { position: absolute; top: 30px; right: 40px; background: white; padding: 12px 25px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; gap: 25px; border: 1px solid var(--border-color); z-index: 100; transition: all 0.3s; }
+        .status-item { display: flex; flex-direction: column; align-items: flex-end; }
+        .status-label { font-size: 11px; color: var(--text-sub); margin-bottom: 2px; }
+        .status-value { font-size: 15px; font-weight: 600; color: var(--text-main); }
+        .status-value.point { color: var(--primary-color); }
+        .status-value.money { color: #28a745; }
+
+        /* 우측 하단 플로팅 로그아웃 버튼 스타일 */
+        .floating-logout {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            width: 45px;
+            height: 45px;
+            background-color: #ff4d4d;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            cursor: pointer;
+            z-index: 999;
+            transition: all 0.2s ease;
+            font-size: 18px;
+        }
+        .floating-logout:hover {
+            background-color: #e60000;
+            transform: scale(1.1);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+        }
+
+        /* 시작 화면 컨테이너 */
+        .start-container { width: 460px; transition: all 0.3s; margin-top: -80px; }
+        .start-container h1 { text-align: center; font-size: 38px; font-weight: 800; margin-bottom: 25px; color: #000; letter-spacing: -1px; }
+        .start-box { background: white; border: 1px solid var(--border-color); padding: 50px 40px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+        .start-message { text-align: center; color: #555; font-size: 16px; margin-bottom: 30px; }
+        .btn-naver { background-color: var(--primary-color); font-size: 18px; padding: 15px; border-radius: 6px; font-weight: bold; width: 100%; color: white; border: none; cursor: pointer; transition: 0.2s; }
+        .btn-naver:hover { background-color: #3468df; }
+        .start-links { text-align: center; margin-top: 25px; font-size: 14px; color: #888; }
+        .start-links a { color: #888; text-decoration: none; cursor: pointer; transition: 0.2s; }
+        .start-links a:hover { color: #333; text-decoration: underline; }
+        .start-links span { margin: 0 12px; color: #ddd; }
+
+        /* 6자리 인증번호 형태의 입력칸 */
+        .digit-group { display: flex; gap: 10px; justify-content: center; margin-bottom: 25px; }
+        .digit-input { width: 50px; height: 60px; border: 1px solid #ccc; border-radius: 8px; font-size: 24px; text-align: center; outline: none; transition: 0.2s; background: #fff; }
+        .digit-input:focus { border: 2px solid var(--primary-color); }
+
+        /* 타임라인(관찰 일지) 모달 전용 */
+        .timeline-modal-content { width: 450px; max-height: 80vh; display: flex; flex-direction: column; text-align: left; }
+        .timeline-container { flex-grow: 1; overflow-y: auto; padding: 10px 10px 10px 5px; margin-top: 15px; border-top: 1px solid var(--border-color); }
+        .timeline-item { position: relative; padding-left: 25px; margin-bottom: 20px; }
+        .timeline-item::before { content: ''; position: absolute; left: 7px; top: 0; bottom: -30px; width: 2px; background-color: #dee2e6; }
+        .timeline-item:last-child::before { display: none; }
+        .timeline-dot { position: absolute; left: 0; top: 5px; width: 16px; height: 16px; border-radius: 50%; background-color: var(--primary-color); border: 3px solid white; box-shadow: 0 0 0 1px var(--primary-color); z-index: 1; }
+        .timeline-date { font-weight: bold; color: var(--primary-color); font-size: 14px; margin-bottom: 8px; }
+        .timeline-card { background: #f8f9fa; border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        .timeline-card p { margin-bottom: 5px; font-size: 13px; color: #555; line-height: 1.5; }
+        .timeline-card strong { color: var(--text-main); }
+        .timeline-empty { text-align: center; color: #888; padding: 30px 0; }
+    </style>
+</head>
+<body>
+
+<div id="sellModalOverlay" class="modal-overlay hidden">
+    <div class="modal-content">
+        <h3>🐧 펭귄 분양소 등록</h3>
+        <p id="sellModalText">여기에 펭귄 정보가 들어갑니다.</p>
+        <input type="number" id="sellPriceInput" value="1500" min="1" placeholder="가격을 입력하세요">
+        <div class="modal-actions">
+            <button onclick="confirmSell()" class="action" style="background-color: #fd7e14;">확인</button>
+            <button onclick="closeSellModal()" class="secondary">취소</button>
+        </div>
+    </div>
+</div> <div id="recordModalOverlay" class="modal-overlay hidden">
+        <div class="modal-content timeline-modal-content" style="width: 550px;">
+            <h3 id="recordModalTitle" style="margin-bottom: 20px;">🐧 펭귄 관찰 일지</h3>
+
+            <div style="width: 100%; height: 200px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+                <canvas id="penguinGrowthChart"></canvas>
+            </div>
+
+            <div id="timelineContainer" class="timeline-container" style="max-height: 40vh;">
+            </div>
+
+            <button onclick="closeRecordModal()" class="secondary" style="margin-top: 15px; width: 100%; margin-bottom: 0;">닫기</button>
+        </div>
+    </div>
+
+<div class="app-container">
+    <nav class="sidebar">
+        <div class="sidebar-logo"><i class="fa-brands fa-linux"></i> Penguin Project</div>
+        <div class="sidebar-nav">
+            <a class="nav-item" onclick="switchScreen('loginScreen')" id="nav-login"><i class="fa-solid fa-lock"></i> Log In</a>
+            <a class="nav-item" onclick="switchScreen('signupScreen')" id="nav-signup"><i class="fa-solid fa-user-plus"></i> Sign Up</a>
+            <a class="nav-item active" onclick="switchScreen('dashboardScreen')" id="nav-dashboard"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
+            <a class="nav-item" onclick="loadAllPenguins()" id="nav-all-stats"><i class="fa-solid fa-chart-pie"></i> All Stats</a>
+            <a class="nav-item" onclick="switchScreen('storeScreen')" id="nav-store"><i class="fa-solid fa-store"></i> Store</a>
+            <a class="nav-item" onclick="alert('준비 중인 기능입니다 (Admin 등)')"><i class="fa-solid fa-id-card-clip"></i> Stats API (Admin)</a>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div id="topStatusBar" class="top-status-bar hidden">
+            <div class="status-item">
+                <span class="status-label">로그인 정보</span>
+                <span class="status-value point" id="barOwnerId">-</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">현재 자산</span>
+                <span class="status-value money" id="barAssets">0원</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">입양된 펭귄</span>
+                <span class="status-value" id="barPenguinCount">0마리</span>
+            </div>
+        </div>
+
+
+        <div id="startScreen" class="start-container">
+            <h1><i class="fa-brands fa-linux" style="margin-right: 15px;"></i>Penguin Project</h1>
+            <div class="start-box">
+                <p class="start-message">펭귄 관리를 더 안전하고 편리하게 이용하세요</p>
+                <button class="btn-naver" onclick="switchScreen('loginScreen')">PENGUIN 로그인</button>
+                <div class="start-links">
+                    <a onclick="switchScreen('findIdStep1')">아이디 찾기</a> <span>|</span>
+                    <a onclick="switchScreen('findPwStep1')">비밀번호 찾기</a> <span>|</span>
+                    <a onclick="switchScreen('signupScreen')">회원가입</a>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="loginScreen" class="start-container hidden">
+            <h1><i class="fa-brands fa-linux" style="margin-right: 15px;"></i>Penguin Project</h1>
+
+            <div class="start-box" style="padding: 40px;">
+                <h2><i class="fa-solid fa-lock" style="margin-right: 12px;"></i>로그인</h2>
+
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <input type="text" id="searchOwnerId" placeholder="아이디 (owner_id)" style="width: 100%; padding: 12px;">
+                </div>
+                <div class="input-group" style="margin-bottom: 20px;">
+                    <input type="password" id="searchPassword" placeholder="비밀번호" style="width: 100%; padding: 12px;">
+                </div>
+
+                <button onclick="loginMember()">로그인</button>
+                <button onclick="switchScreen('startScreen')" class="secondary">처음으로 돌아가기</button>
+
+                <div class="start-links" style="margin-top: 15px; margin-bottom: 20px;">
+                    <a onclick="switchScreen('findIdStep1')">아이디 찾기</a> <span>|</span>
+                    <a onclick="switchScreen('findPwStep1')">비밀번호 찾기</a> <span>|</span>
+                    <a onclick="switchScreen('signupScreen')">회원가입</a>
+                </div>
+                <p id="loginResultMessage" style="font-weight: bold; text-align: center; color: red; margin-top: 15px;"></p>
+            </div>
+        </div>
+
+
+        <div id="signupScreen" class="start-container hidden">
+            <h1><i class="fa-brands fa-linux" style="margin-right: 15px;"></i>Penguin Project</h1>
+
+            <div class="start-box" style="padding: 40px;">
+                <h2><i class="fa-solid fa-user-plus" style="margin-right: 12px;"></i>회원 가입</h2>
+
+                <div class="input-group" style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <label style="flex-shrink: 0;">아이디:</label>
+                    <input type="text" id="newOwnerId" placeholder="사용할 아이디" style="width: 100%; margin-right: 8px;">
+                    <button type="button" onclick="checkId()" style="width: 75px; flex-shrink: 0; margin: 0; padding: 10px 0; font-size: 13px; background-color: #6c757d;">중복 확인</button>
+                </div>
+                <p id="idCheckMessage" style="font-size: 12px; margin: 0 0 10px 100px; font-weight: bold; height: 15px;"></p>
+
+                <div class="input-group" style="display: flex; align-items: center; margin-bottom: 15px;">
+                    <label style="flex-shrink: 0;">비밀번호:</label>
+                    <input type="password" id="newPassword" placeholder="비밀번호" style="width: 100%;">
+                </div>
+
+                <div class="input-group" style="display: flex; align-items: center; margin-bottom: 15px;">
+                    <label style="flex-shrink: 0;">비밀번호 확인:</label>
+                    <input type="password" id="newPasswordConfirm" placeholder="비밀번호 다시 입력" style="width: 100%;">
+                </div>
+
+                <div class="input-group" style="display: flex; align-items: center; margin-bottom: 15px;">
+                    <label style="flex-shrink: 0;">이름:</label>
+                    <input type="text" id="newName" placeholder="이름 (예: 홍길동)" style="width: 100%;">
+                </div>
+
+                <div class="input-group" style="display: flex; align-items: center; margin-bottom: 15px;">
+                    <label style="flex-shrink: 0;">생년월일:</label>
+                    <input type="text" id="newBirthdate" placeholder="생년월일 6자리 (예: 990101)" maxlength="6" style="width: 100%;">
+                </div>
+
+                <div class="input-group" style="display: flex; align-items: center; margin-bottom: 20px;">
+                    <label style="flex-shrink: 0;">전화번호:</label>
+                    <input type="text" id="newPhoneNumber" placeholder="연락처 (예: 010-1234-5678)" style="width: 100%;">
+                </div>
+
+                <button onclick="createMember()">가입하기</button>
+                <button onclick="switchScreen('startScreen')" class="secondary">취소 및 뒤로 가기</button>
+                <p id="createResultMessage" style="font-weight: bold; text-align: center; margin-top: 15px;"></p>
+            </div>
+        </div>
+
+
+        <div id="findIdStep1" class="start-container hidden">
+            <h1><i class="fa-brands fa-linux" style="margin-right: 15px;"></i>Penguin Project</h1>
+
+            <div class="start-box" style="padding: 40px;">
+                <h2 style="text-align: left; margin-bottom: 10px;">아이디 찾기</h2>
+                <p style="color: #666; font-size: 14px; margin-bottom: 25px;">가입 시 등록한 이름과 전화번호를 입력해 주세요.</p>
+
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <input type="text" id="findName" placeholder="이름" style="width: 100%; padding: 14px; font-size: 15px;">
+                </div>
+                <div class="input-group" style="margin-bottom: 25px;">
+                    <input type="text" id="findPhone" placeholder="전화번호 (예: 010-1234-5678)" style="width: 100%; padding: 14px; font-size: 15px;">
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="switchScreen('startScreen')" class="secondary" style="margin-bottom: 0;">취소</button>
+                    <button onclick="goToFindIdStep2()" style="padding: 14px; font-size: 16px; margin-bottom: 0;">다음</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="findIdStep2" class="start-container hidden">
+            <h1><i class="fa-brands fa-linux" style="margin-right: 15px;"></i>Penguin Project</h1>
+
+            <div class="start-box" style="padding: 40px;">
+                <h2 style="text-align: left; margin-bottom: 10px;">본인 확인</h2>
+                <p style="color: #666; font-size: 14px; margin-bottom: 25px;">안전한 확인을 위해 <b>생년월일 6자리</b>를 입력해 주세요.</p>
+
+                <div class="digit-group" id="findIdBirthGroup">
+                    <input type="text" class="digit-input id-digit" maxlength="1">
+                    <input type="text" class="digit-input id-digit" maxlength="1">
+                    <input type="text" class="digit-input id-digit" maxlength="1">
+                    <input type="text" class="digit-input id-digit" maxlength="1">
+                    <input type="text" class="digit-input id-digit" maxlength="1">
+                    <input type="text" class="digit-input id-digit" maxlength="1">
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="switchScreen('findIdStep1')" class="secondary" style="margin-bottom: 0;">이전으로</button>
+                    <button onclick="executeFindId()" style="padding: 14px; font-size: 16px; margin-bottom: 0;">다음</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="findIdStep3" class="start-container hidden">
+            <h1><i class="fa-brands fa-linux" style="margin-right: 15px;"></i>Penguin Project</h1>
+
+            <div class="start-box" style="padding: 40px;">
+                <h2 style="text-align: left; margin-bottom: 10px;">아이디를 찾았어요</h2>
+                <p style="color: #666; font-size: 14px; margin-bottom: 25px;">비밀번호를 잊으셨다면 '비밀번호 찾기'를 눌러주세요.</p>
+
+                <div style="border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-bottom: 25px; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 18px; font-weight: bold; color: var(--text-main);"><i class="fa-solid fa-user" style="color: #ccc; margin-right: 10px;"></i><span id="foundIdResult"></span></span>
+                    <i class="fa-solid fa-circle-check" style="color: var(--primary-color); font-size: 20px;"></i>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button class="secondary" onclick="document.getElementById('findPwId').value = document.getElementById('foundIdResult').innerText; switchScreen('findPwStep1');" style="margin-bottom: 0;">비밀번호 찾기</button>
+
+                    <button onclick="switchScreen('loginScreen')" style="margin-bottom: 0;">로그인하러 가기</button>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="findPwStep1" class="start-container hidden">
+            <h1><i class="fa-brands fa-linux" style="margin-right: 15px;"></i>Penguin Project</h1>
+
+            <div class="start-box" style="padding: 40px;">
+                <h2 style="text-align: left; margin-bottom: 10px;">비밀번호 찾기</h2>
+                <p style="color: #666; font-size: 14px; margin-bottom: 25px;">아이디를 입력해 주세요.</p>
+
+                <div class="input-group" style="margin-bottom: 25px;">
+                    <input type="text" id="findPwId" placeholder="아이디" style="width: 100%; padding: 14px; font-size: 15px;">
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="switchScreen('startScreen')" class="secondary" style="margin-bottom: 0;">취소</button>
+                    <button onclick="goToFindPwStep2()" style="padding: 14px; font-size: 16px; margin-bottom: 0;">다음</button>
+                </div>
+
+                <div class="start-links" style="margin-top: 15px; text-align: right;">
+                    <a onclick="switchScreen('findIdStep1')">아이디가 기억나지 않나요?</a>
+                </div>
+            </div>
+        </div>
+
+        <div id="findPwStep2" class="start-container hidden">
+            <h1><i class="fa-brands fa-linux" style="margin-right: 15px;"></i>Penguin Project</h1>
+
+            <div class="start-box" style="padding: 40px;">
+                <h2 style="text-align: left; margin-bottom: 10px;">비밀번호 찾기</h2>
+                <p id="findPwStep2Subtitle" style="color: #666; font-size: 14px; margin-bottom: 25px;"></p>
+
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <input type="text" id="findPwName" placeholder="이름" style="width: 100%; padding: 14px; font-size: 15px;">
+                </div>
+                <div class="input-group" style="margin-bottom: 25px;">
+                    <input type="text" id="findPwPhone" placeholder="전화번호" style="width: 100%; padding: 14px; font-size: 15px;">
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="switchScreen('findPwStep1')" class="secondary" style="margin-bottom: 0;">이전으로</button>
+                    <button onclick="goToFindPwStep3()" style="padding: 14px; font-size: 16px; margin-bottom: 0;">다음</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="findPwStep3" class="start-container hidden">
+            <h1><i class="fa-brands fa-linux" style="margin-right: 15px;"></i>Penguin Project</h1>
+
+            <div class="start-box" style="padding: 40px;">
+                <h2 style="text-align: left; margin-bottom: 10px;">본인 확인</h2>
+                <p style="color: #666; font-size: 14px; margin-bottom: 25px;">안전한 확인을 위해 <b>생년월일 6자리</b>를 입력해 주세요.</p>
+
+                <div class="digit-group" id="findPwBirthGroup">
+                    <input type="text" class="digit-input pw-digit" maxlength="1">
+                    <input type="text" class="digit-input pw-digit" maxlength="1">
+                    <input type="text" class="digit-input pw-digit" maxlength="1">
+                    <input type="text" class="digit-input pw-digit" maxlength="1">
+                    <input type="text" class="digit-input pw-digit" maxlength="1">
+                    <input type="text" class="digit-input pw-digit" maxlength="1">
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="switchScreen('findPwStep2')" class="secondary" style="margin-bottom: 0;">이전으로</button>
+                    <button onclick="verifyAndGoToReset()" style="padding: 14px; font-size: 16px; margin-bottom: 0;">다음</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="resetPwScreen" class="start-container hidden">
+            <h1><i class="fa-brands fa-linux" style="margin-right: 15px;"></i>Penguin Project</h1>
+
+            <div class="start-box" style="padding: 40px;">
+                <h2 style="text-align: left; margin-bottom: 10px;">비밀번호 재설정</h2>
+                <p style="color: #666; font-size: 14px; margin-bottom: 25px;">새롭게 사용할 비밀번호를 입력해 주세요.</p>
+
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <input type="password" id="resetPwNew" placeholder="새 비밀번호" style="width: 100%; padding: 14px; font-size: 15px;">
+                </div>
+                <div class="input-group" style="margin-bottom: 25px;">
+                    <input type="password" id="resetPwConfirm" placeholder="새 비밀번호 확인" style="width: 100%; padding: 14px; font-size: 15px;">
+                </div>
+
+                <button onclick="executeResetPassword()" style="padding: 14px; font-size: 16px;">비밀번호 변경</button>
+            </div>
+        </div>
+
+        <div id="dashboardScreen" class="box hidden" style="width: 500px;">
+            <h2>🏠 마이 페이지</h2>
+            <h3 id="welcomeMessage" style="text-align: center; margin-bottom: 20px; font-size: 16px; color: var(--primary-color);"></h3>
+
+            <div id="penguinListContainer" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px;"></div>
+
+            <button class="action" onclick="switchScreen('storeScreen')" style="background-color: var(--primary-color);"><i class="fa-solid fa-cart-shopping" style="margin-right: 8px;"></i>입양하기</button>
+            <button class="action" onclick="loadMyPenguinsStats()" style="background-color: #17a2b8;"><i class="fa-solid fa-chart-pie" style="margin-right: 8px;"></i>내 펭귄 통계</button>
+            <button onclick="logout()" class="secondary" style="margin-top: 20px;">로그아웃</button>
+        </div>
+
+        <div id="storeScreen" class="box list-box hidden">
+            <h2>🏪 펭귄 분양소 (Store)</h2>
+            <p style="text-align:center; color:#666; margin-bottom:20px;">자연 또는 다른 유저가 분양 중인 펭귄들입니다.</p>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <select id="speciesFilter" style="flex-grow: 1; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px; outline: none;">
+                    <option value="ALL">모든 펭귄 보기</option>
+                </select>
+                <button class="action" onclick="applyStoreFilter()" style="width: auto; padding: 10px 20px; margin: 0; background-color: #3f7afc;">적용하기</button>
+            </div>
+
+            <div id="storeListContainer" style="display: flex; flex-direction: column; gap: 15px; max-height: 55vh; overflow-y: auto; padding-right: 10px;">
+            </div>
+            <button onclick="switchScreen('dashboardScreen')" class="secondary" style="margin-top: 20px;">마이 페이지로 돌아가기</button>
+        </div>
+
+        <div id="addPenguinScreen" class="box hidden">
+            <h2>🐧 새 펭귄 입양하기 (관리자용)</h2>
+            <div class="input-group"><label>종류:</label><input type="text" id="addSpecies" placeholder="예: Gentoo"></div>
+            <div class="input-group"><label>서식지:</label><input type="text" id="addIsland" placeholder="예: Biscoe"></div>
+            <div class="input-group"><label>성별:</label><input type="text" id="addSex" placeholder="MALE / FEMALE / NA"></div>
+            <button onclick="addPenguin()">등록하기</button>
+            <button onclick="switchScreen('dashboardScreen')" class="secondary">취소 및 뒤로 가기</button>
+        </div>
+
+        <div id="updateScreen" class="box hidden" style="width: 550px; max-height: 90vh; overflow-y: auto;">
+            <h2>🛠️ 펭귄 정보 수정</h2>
+
+            <h3 style="font-size: 15px; color: var(--primary-color); margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;"><i class="fa-solid fa-tag"></i> 기본 정보</h3>
+            <div class="input-group"><label>종류:</label><input type="text" id="updateSpecies" placeholder="예: Gentoo"></div>
+            <div class="input-group"><label>서식지:</label><input type="text" id="updateIsland" placeholder="예: Biscoe"></div>
+            <div class="input-group"><label>성별:</label><input type="text" id="updateSex" placeholder="MALE / FEMALE"></div>
+
+            <h3 style="font-size: 15px; color: var(--primary-color); margin-top: 25px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;"><i class="fa-solid fa-ruler-combined"></i> 신체 정보</h3>
+            <div class="input-group"><label>부리 길이:</label><input type="number" step="0.1" id="updateCulmenLength" placeholder="단위: mm"></div>
+            <div class="input-group"><label>부리 깊이:</label><input type="number" step="0.1" id="updateCulmenDepth" placeholder="단위: mm"></div>
+            <div class="input-group"><label>날개 길이:</label><input type="number" step="0.1" id="updateFlipperLength" placeholder="단위: mm"></div>
+            <div class="input-group"><label>몸무게:</label><input type="number" step="0.1" id="updateBodyMass" placeholder="단위: g"></div>
+
+            <h3 style="font-size: 15px; color: var(--primary-color); margin-top: 25px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;"><i class="fa-solid fa-book-medical"></i> 특이사항 노트</h3>
+            <div class="input-group">
+                <label>기록 날짜:</label>
+                <input type="date" id="updateNoteDate" style="font-family: inherit; cursor: pointer;">
+            </div>
+            <div class="input-group" style="display: flex; align-items: flex-start;">
+                <label style="margin-top: 10px; flex-shrink: 0;">노트 내용:</label>
+                <textarea id="updateNoteContent" placeholder="예: 몸무게가 30g 증가하였음. 왼쪽 부리에 상처가 남." rows="4" style="width: calc(100% - 110px); padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; resize: vertical; font-family: inherit; font-size: 14px; outline: none;"></textarea>
+            </div>
+
+            <button onclick="updatePenguin()" style="background-color: #28a745; margin-top: 20px;">수정 완료</button>
+            <button onclick="switchScreen('dashboardScreen')" class="secondary">취소 및 뒤로 가기</button>
+        </div>
+
+        <div id="listScreen" class="box list-box hidden">
+            <h2>📊 전체 펭귄 데이터 통계</h2>
+            <div class="chart-wrapper"><h3>종 (Species) 분포</h3><canvas id="speciesChart"></canvas></div>
+            <div class="chart-wrapper"><h3>서식지 (Island) 분포</h3><canvas id="islandChart"></canvas></div>
+            <div class="chart-wrapper"><h3>성별 (Sex) 분포</h3><canvas id="sexChart"></canvas></div>
+            <button onclick="switchScreen('dashboardScreen')" class="secondary">마이 페이지로 돌아가기</button>
+        </div>
+    </main>
+
+    <div id="floatingLogout" class="floating-logout hidden" onclick="logout()" title="즉시 로그아웃">
+        <i class="fa-solid fa-right-from-bracket"></i>
+    </div>
+
+</div>
+
+<script>
+    let currentOwnerId = '';
+    let currentEditPenguinId = null;
+    let myCharts = {};
+
+    // 💡 2. 필터링을 위한 전역 변수 추가
+    let allStoreItems = [];
+
+    function switchScreen(screenId) {
+        const requiresAuth = ['dashboardScreen', 'addPenguinScreen', 'updateScreen', 'listScreen', 'storeScreen'];
+
+        if (requiresAuth.includes(screenId) && currentOwnerId === '') {
+            alert("로그인을 먼저 하셔야 합니다.");
+            screenId = 'loginScreen';
+        }
+        else if ((screenId === 'loginScreen' || screenId === 'signupScreen') && currentOwnerId !== '') {
+            alert("이미 로그인되어 있습니다. 다른 계정으로 접속하시려면 먼저 로그아웃해 주세요.");
+            screenId = 'dashboardScreen';
+        }
+
+        document.querySelectorAll('.box, .start-container').forEach(el => el.classList.add('hidden'));
+        document.getElementById('createResultMessage').innerText = '';
+        document.getElementById('loginResultMessage').innerText = '';
+
+        document.getElementById(screenId).classList.remove('hidden');
+        updateSidebarNav(screenId);
+
+        // 💡 1. 화면이 바뀔 때마다 상단 상태바 정보를 갱신합니다.
+        refreshStatusBar();
+
+        if(screenId === 'dashboardScreen') {
+            loadMyPenguins();
+        } else if (screenId === 'storeScreen') {
+            document.getElementById('speciesFilter').value = 'ALL'; // 상점 진입 시 필터 초기화
+            loadStoreItems();
+        }
+    }
+
+    // 💡 1. 상태바 갱신 함수
+    function refreshStatusBar() {
+        const statusBar = document.getElementById('topStatusBar');
+        const floatingBtn = document.getElementById('floatingLogout');
+
+        if (currentOwnerId === '') {
+            statusBar.classList.add('hidden'); // 로그아웃 상태면 숨김
+            floatingBtn.classList.add('hidden');
+            return;
+        }
+
+        statusBar.classList.remove('hidden'); // 로그인 상태면 보임
+        floatingBtn.classList.remove('hidden');
+
+        document.getElementById('barOwnerId').innerText = currentOwnerId;
+
+        // 방금 백엔드에 만든 내 정보 API 호출 (자산 갱신)
+        fetch('/api/member/' + currentOwnerId)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('barAssets').innerText = data.assets.toLocaleString() + '원';
+        })
+        .catch(e => console.error("자산 갱신 오류:", e));
+
+        // 내 펭귄 마리 수 갱신
+        fetch('/api/penguin/my/' + currentOwnerId)
+        .then(res => res.json())
+        .then(list => {
+            document.getElementById('barPenguinCount').innerText = list.length + '마리';
+        });
+    }
+
+    function updateSidebarNav(screenId) {
+        // 1. 모든 사이드바 메뉴의 하이라이트를 지웁니다.
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+        // 2. 화면 ID에 따라 맞는 메뉴에 하이라이트를 줍니다. (listScreen 제외)
+        if (['dashboardScreen', 'addPenguinScreen', 'updateScreen'].includes(screenId)) {
+            document.getElementById('nav-dashboard').classList.add('active');
+        } else if (screenId === 'loginScreen') {
+            document.getElementById('nav-login').classList.add('active');
+        } else if (screenId === 'signupScreen') {
+            document.getElementById('nav-signup').classList.add('active');
+        } else if (screenId === 'storeScreen') {
+            document.getElementById('nav-store').classList.add('active');
+        }
+        // 💡 3. 통계 화면(listScreen)일 경우의 분기 처리
+        else if (screenId === 'listScreen') {
+            const titleText = document.querySelector('#listScreen h2').innerText;
+
+            // 제목에 '전체'가 포함되어 있으면 All Stats 메뉴를 활성화
+            if (titleText.includes("전체")) {
+                document.getElementById('nav-all-stats').classList.add('active');
+            }
+            // '내 펭귄' 통계라면 기존처럼 Dashboard 메뉴를 활성화
+            else {
+                document.getElementById('nav-dashboard').classList.add('active');
+            }
+        }
+    }
+
+    // 중복 확인 통과 여부를 저장하는 전역 변수
+    let isIdChecked = false;
+
+    // 1. 중복 확인 함수
+    function checkId() {
+        const ownerId = document.getElementById('newOwnerId').value;
+        const msgElement = document.getElementById('idCheckMessage');
+
+        if (!ownerId || ownerId.trim() === "") {
+            alert("아이디를 입력해 주세요.");
+            return;
+        }
+
+        fetch(`/api/member/check-id?ownerId=${ownerId}`)
+        .then(res => res.json())
+        .then(isDuplicated => {
+            if (isDuplicated) {
+                msgElement.style.color = "red";
+                msgElement.innerText = "❌ 이미 사용 중인 아이디입니다.";
+                isIdChecked = false;
+            } else {
+                msgElement.style.color = "green";
+                msgElement.innerText = "✅ 사용 가능한 아이디입니다.";
+                isIdChecked = true;
+            }
+        })
+        .catch(e => alert("서버 통신 오류가 발생했습니다."));
+    }
+
+    // 아이디를 다시 입력하면 중복 확인 상태를 초기화 (실수 방지)
+    document.getElementById('newOwnerId').addEventListener('input', function() {
+        isIdChecked = false;
+        document.getElementById('idCheckMessage').innerText = "";
+    });
+
+    // 2. 완벽하게 복구된 가입하기 함수 (이름, 생일, 전화번호 추가)
+    function createMember() {
+        // ① 아이디 중복 확인 검사
+        if (!isIdChecked) {
+            alert("아이디 중복 확인을 먼저 진행해 주세요.");
+            return;
+        }
+
+        const ownerId = document.getElementById('newOwnerId').value;
+        const password = document.getElementById('newPassword').value;
+        const passwordConfirm = document.getElementById('newPasswordConfirm').value;
+
+        // 💡 새로 추가된 입력값 가져오기
+        const name = document.getElementById('newName').value;
+        const birthdate = document.getElementById('newBirthdate').value;
+        const phoneNumber = document.getElementById('newPhoneNumber').value;
+
+        // ② 필수 입력값 검사
+        if (!name || !birthdate || !phoneNumber || !password) {
+            alert("모든 회원 정보를 입력해 주세요.");
+            return;
+        }
+
+        if (birthdate.length !== 6) {
+            alert("생년월일은 6자리 숫자로 입력해 주세요. (예: 990101)");
+            return;
+        }
+
+        // ③ 비밀번호 일치 검사
+        if (password !== passwordConfirm) {
+            alert("비밀번호가 서로 일치하지 않습니다. 다시 확인해 주세요.");
+            return;
+        }
+
+        // ④ 백엔드로 진짜 가입 요청 (DTO 구조에 맞춰 JSON 데이터 추가)
+        fetch('/api/member/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ownerId: ownerId,
+                password: password,
+                name: name,
+                birthdate: birthdate,
+                phoneNumber: phoneNumber
+            })
+        })
+        .then(async response => {
+            if (!response.ok) throw new Error(await response.text());
+            return response.text();
+        })
+        .then(message => {
+            const msgBox = document.getElementById('createResultMessage');
+            msgBox.style.color = 'green';
+            msgBox.innerText = "🎉 가입 성공! 로그인 해주세요.";
+
+            setTimeout(() => {
+                switchScreen('loginScreen');
+                document.getElementById('searchOwnerId').value = ownerId;
+
+                // 💡 가입 완료 후 모든 입력창 청소
+                document.getElementById('newOwnerId').value = '';
+                document.getElementById('newPassword').value = '';
+                document.getElementById('newPasswordConfirm').value = '';
+                document.getElementById('newName').value = '';
+                document.getElementById('newBirthdate').value = '';
+                document.getElementById('newPhoneNumber').value = '';
+                document.getElementById('idCheckMessage').innerText = '';
+                isIdChecked = false;
+            }, 1500);
+        })
+        .catch(error => {
+            document.getElementById('createResultMessage').style.color = 'red';
+            document.getElementById('createResultMessage').innerText = "에러: " + error.message;
+        });
+    }
+
+    // 아이디 찾기용 임시 저장 변수
+    let tempFindName = "";
+    let tempFindPhone = "";
+
+    function goToFindIdStep2() { // 1단계 -> 2단계 넘어가는 함수
+        tempFindName = document.getElementById('findName').value.trim();
+        tempFindPhone = document.getElementById('findPhone').value.trim();
+        if (!tempFindName || !tempFindPhone) { alert("이름과 전화번호를 모두 입력해 주세요."); return; }
+
+        // 입력칸 초기화
+        document.querySelectorAll('.id-digit').forEach(input => input.value = '');
+        switchScreen('findIdStep2');
+        // 화면 전환 후 첫 번째 칸에 자동 포커스
+        setTimeout(() => document.querySelector('.id-digit').focus(), 100);
+    }
+
+    function executeFindId() { // 2단계 -> 백엔드 조회 -> 3단계 결과 보여주는 함수
+        let birthdate = '';
+        document.querySelectorAll('.id-digit').forEach(input => birthdate += input.value);
+
+        if (birthdate.length !== 6) { alert("생년월일 6자리를 모두 입력해 주세요."); return; }
+
+        // 백엔드 API 호출 (GET 요청)
+        fetch(`/api/member/find-id?name=${encodeURIComponent(tempFindName)}&birthdate=${birthdate}&phone_number=${encodeURIComponent(tempFindPhone)}`)
+        .then(async response => {
+            if (!response.ok) {
+                // 상태 코드가 404 등 에러일 경우
+                throw new Error("입력하신 정보와 일치하는 계정을 찾을 수 없습니다.");
+            }
+            return response.text(); // 성공 시 아이디(String) 반환
+        })
+        .then(foundId => {
+            // 성공 시 3단계 화면으로 전환하고 아이디 표시
+            document.getElementById('foundIdResult').innerText = foundId;
+            switchScreen('findIdStep3');
+        })
+        .catch(error => {
+            alert(error.message);
+            // 실패 시 다시 1단계로 돌려보내기
+            switchScreen('findIdStep1');
+        });
+    }
+
+    // 비밀번호 찾기용 임시 저장 변수
+    let tempPwId = "";
+    let tempPwName = "";
+    let tempPwPhone = "";
+
+    // 1단계 -> 2단계
+    function goToFindPwStep2() {
+        tempPwId = document.getElementById('findPwId').value.trim();
+        if (!tempPwId) {
+            alert("아이디를 입력해 주세요.");
+            return;
+        }
+
+        // 💡 캡처 화면처럼 아이디를 포함한 안내 문구 생성
+        document.getElementById('findPwStep2Subtitle').innerText = `${tempPwId}의 이름과 전화번호를 입력해 주세요.`;
+
+        document.getElementById('findPwName').value = "";
+        document.getElementById('findPwPhone').value = "";
+        switchScreen('findPwStep2');
+    }
+
+    // 2단계 -> 3단계
+    function goToFindPwStep3() {
+        tempPwName = document.getElementById('findPwName').value.trim();
+        tempPwPhone = document.getElementById('findPwPhone').value.trim();
+        if (!tempPwName || !tempPwPhone) { alert("이름과 전화번호를 모두 입력해 주세요."); return; }
+
+        // 입력칸 초기화
+        document.querySelectorAll('.pw-digit').forEach(input => input.value = '');
+        switchScreen('findPwStep3');
+        // 첫 번째 칸 자동 포커스
+        setTimeout(() => document.querySelector('.pw-digit').focus(), 100);
+    }
+
+    // 3단계 -> 정보 검증 후 4단계(재설정)로 이동
+    function verifyAndGoToReset() {
+        let birthdate = '';
+        document.querySelectorAll('.pw-digit').forEach(input => birthdate += input.value);
+
+        if (birthdate.length !== 6) { alert("생년월일 6자리를 모두 입력해 주세요."); return; }
+
+        // 💡 백엔드 본인 확인 API 호출 (다음 단계에서 백엔드에 만들 예정)
+        fetch(`/api/member/verify?ownerId=${tempPwId}&name=${encodeURIComponent(tempPwName)}&phone_number=${encodeURIComponent(tempPwPhone)}&birthdate=${birthdate}`)
+        .then(async response => {
+            if (!response.ok) throw new Error("입력하신 정보와 일치하는 계정이 없습니다.");
+
+            alert("본인 인증이 완료되었습니다. 새 비밀번호를 설정해 주세요.");
+
+            // 검증 통과 시 재설정 화면으로 이동
+            document.getElementById('resetPwNew').value = "";
+            document.getElementById('resetPwConfirm').value = "";
+            switchScreen('resetPwScreen');
+        })
+        .catch(error => {
+            alert(error.message);
+            switchScreen('findPwStep1'); // 실패 시 처음으로
+        });
+    }
+
+    // 4단계 -> 진짜 비밀번호 변경 요청
+    function executeResetPassword() {
+        const newPw = document.getElementById('resetPwNew').value;
+        const newPwConfirm = document.getElementById('resetPwConfirm').value;
+
+        if (!newPw || newPw !== newPwConfirm) {
+            alert("비밀번호가 일치하지 않습니다. 다시 확인해 주세요.");
+            return;
+        }
+
+        // 💡 백엔드 비밀번호 변경 API 호출
+        fetch('/api/member/reset-password', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ownerId: tempPwId, password: newPw })
+        })
+        .then(async response => {
+            if (!response.ok) {
+                // 💡 수정된 부분: 백엔드가 보내준 '진짜 에러 원인'을 읽어옵니다.
+                const errorDetail = await response.text();
+                throw new Error("실패 원인: " + errorDetail);
+            }
+
+            alert("비밀번호가 성공적으로 변경되었습니다! 새 비밀번호로 로그인해 주세요.");
+            switchScreen('loginScreen');
+            document.getElementById('searchOwnerId').value = tempPwId;
+            document.getElementById('searchPassword').value = "";
+        })
+        .catch(error => alert(error.message));
+    }
+
+    function loginMember() {
+        const ownerId = document.getElementById('searchOwnerId').value;
+        const password = document.getElementById('searchPassword').value;
+
+        fetch('/api/member/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ownerId: ownerId, password: password })
+        })
+        .then(async response => {
+            if (!response.ok) throw new Error("아이디 또는 비밀번호가 일치하지 않습니다.");
+            currentOwnerId = ownerId;
+            document.getElementById('welcomeMessage').innerText = ownerId + "님의 펭귄 식구들";
+            switchScreen('dashboardScreen');
+        })
+        .catch(error => {
+            document.getElementById('loginResultMessage').innerText = error.message;
+        });
+    }
+
+    function logout() {
+        currentOwnerId = '';
+        document.getElementById('searchOwnerId').value = '';
+        document.getElementById('searchPassword').value = '';
+        switchScreen('startScreen'); // 💡 'loginScreen'에서 'startScreen'으로 변경!
+    }
+
+    function loadMyPenguins() {
+        fetch('/api/penguin/my/' + currentOwnerId)
+        .then(res => res.json())
+        .then(list => {
+            const container = document.getElementById('penguinListContainer');
+            if(list.length === 0) {
+                container.innerHTML = "<p style='text-align:center; color:#888;'>아직 입양한 펭귄이 없습니다.</p>";
+                return;
+            }
+
+            let html = "";
+            list.forEach(p => {
+                html += `
+                <div class="penguin-card">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                        <p style="font-size: 16px; margin: 0;"><strong>No.${p.id} ${p.species}</strong></p>
+                        <button class="secondary" style="background-color: #6c757d; color: white; width: auto; padding: 4px 10px; font-size: 12px; margin: 0; cursor: pointer;" onclick="openRecordModal(${p.id}, '${p.species}')"><i class="fa-solid fa-book-open"></i> 일지 보기</button>
+                    </div>
+
+                    <p>서식지: <strong>${p.island}</strong> | 성별: <strong>${p.sex}</strong></p>
+
+                    <div class="card-actions">
+                        <button class="action" onclick="openUpdateForm(${p.id}, '${p.species}', '${p.island}', '${p.sex}', ${p.culmenLength || null}, ${p.culmenDepth || null}, ${p.flipperLength || null}, ${p.bodyMass || null}, '${p.noteDate || ''}', '${(p.noteContent || '').replace(/\n/g, '\\n')}')">수정</button>
+                        <button class="secondary" style="background-color:#fd7e14; color:white;" onclick="sellPenguin(${p.id}, '${p.species}')">분양</button>
+                    </div>
+                </div>
+                `;
+            });
+            container.innerHTML = html;
+        });
+    }
+
+    // 상점에 있는 펭귄 종류만 추출해서 필터 목록 만들기
+    function updateSpeciesDropdown(list) {
+        const filterSelect = document.getElementById('speciesFilter');
+        const currentSelection = filterSelect.value; // 현재 선택해둔 값 기억
+
+        // 1. 전체 리스트에서 종(species)만 뽑아낸 뒤, 중복을 제거합니다 (Set 객체 활용)
+        const uniqueSpecies = [...new Set(list.map(p => p.species))];
+
+        // 2. 기본 'ALL' 옵션을 먼저 넣고, 존재하는 종들만 <option>으로 추가합니다.
+        let html = `<option value="ALL">모든 펭귄 보기</option>`;
+        uniqueSpecies.forEach(species => {
+            html += `<option value="${species}">${species} 펭귄</option>`;
+        });
+
+        filterSelect.innerHTML = html;
+
+        // 3. 목록을 새로고침해도 기존에 선택했던 필터가 유지되도록 처리
+        if (uniqueSpecies.includes(currentSelection)) {
+            filterSelect.value = currentSelection;
+        } else {
+            filterSelect.value = 'ALL';
+        }
+    }
+
+    function loadStoreItems() {
+        fetch('/api/store')
+        .then(res => res.json())
+        .then(list => {
+            allStoreItems = list; // 불러온 전체 데이터를 전역 변수에 저장
+            updateSpeciesDropdown(list);
+            renderStoreList(allStoreItems); // 화면에 그리기
+        })
+        .catch(error => alert("상점 데이터를 불러오지 못했습니다: " + error.message));
+    }
+
+    // 필터 '적용하기' 버튼 클릭 시 실행
+    function applyStoreFilter() {
+        const selectedSpecies = document.getElementById('speciesFilter').value;
+        if (selectedSpecies === "ALL") {
+            renderStoreList(allStoreItems);
+        } else {
+            // 선택한 종(species)과 일치하는 펭귄만 걸러냅니다.
+            const filteredList = allStoreItems.filter(p => p.species === selectedSpecies);
+            renderStoreList(filteredList);
+        }
+    }
+
+    // 실제로 상점 리스트를 화면에 그려주는 함수 (재사용 가능하도록 분리)
+    function renderStoreList(list) {
+        const container = document.getElementById('storeListContainer');
+        if(list.length === 0) {
+            container.innerHTML = "<p style='text-align:center; color:#888; padding: 20px 0;'>조건에 맞는 펭귄이 없습니다.</p>";
+            return;
+        }
+
+        let html = "";
+        list.forEach((p, index) => {
+            const displayNum = index + 1;
+            html += `
+            <div class="penguin-card" style="display:flex; justify-content: space-between; align-items: center; background-color: #fff; border-left: 4px solid var(--primary-color);">
+                <div>
+                    <p style="font-size: 16px; margin-bottom: 5px;"><strong>${p.species}</strong> (No.${displayNum})</p>
+                    <p style="margin:0; font-size: 13px;">서식지: ${p.island} | 성별: ${p.sex}</p>
+                    <p style="margin-top:5px; font-size: 13px; color: #888;"><i class="fa-solid fa-user-tag"></i> 판매자: ${p.sellerId}</p>
+                </div>
+                <div style="text-align: right;">
+                    <p style="margin-bottom: 8px; color: #28a745; font-weight:bold; font-size: 16px;">🪙 ${p.price}원</p>
+                    <button class="action" style="width: auto; padding: 8px 15px; margin:0;" onclick="buyStorePenguin(${p.id}, '${p.species}', ${p.price})">입양하기</button>
+                </div>
+            </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+    function buyStorePenguin(storeId, species, price) {
+        if(!confirm(`정말로 ${species} 펭귄을 ${price}원에 입양하시겠습니까?\n(잔액이 부족하면 결제가 취소됩니다)`)) return;
+
+        fetch(`/api/store/buy/${storeId}?buyerId=${currentOwnerId}`, {
+            method: 'POST'
+        })
+        .then(async response => {
+            if (!response.ok) {
+                const errorMsg = await response.text();
+                throw new Error(errorMsg);
+            }
+            alert(await response.text());
+
+            // 마이페이지로 가지 않고 상점 화면을 새로고침합니다!
+            loadStoreItems(); // 상점 매물 다시 불러오기 (입양한 펭귄이 목록에서 사라짐)
+            refreshStatusBar(); // 우측 상단 상태바 즉시 갱신 (잔액 차감, 입양 마리 수 증가)
+        })
+        .catch(error => alert("🚫 입양 실패: " + error.message));
+    }
+
+    let currentSellPenguinId = null;
+
+    function sellPenguin(penguinId, species) {
+        currentSellPenguinId = penguinId;
+        document.getElementById('sellModalText').innerHTML =
+            `<span class="highlight">No.${penguinId} [${species}]</span> 펭귄을 분양소에 등록합니다.<br>희망 분양 가격을 입력해 주세요:`;
+        document.getElementById('sellPriceInput').value = '1500';
+        document.getElementById('sellModalOverlay').classList.remove('hidden');
+    }
+
+    function closeSellModal() {
+        document.getElementById('sellModalOverlay').classList.add('hidden');
+        currentSellPenguinId = null;
+    }
+
+    function confirmSell() {
+        const priceInput = document.getElementById('sellPriceInput').value;
+        const hopePrice = parseFloat(priceInput);
+
+        if (isNaN(hopePrice) || hopePrice <= 0) {
+            alert("올바른 가격을 0보다 크게 입력해 주세요.");
+            return;
+        }
+
+        fetch(`/api/store/sell/${currentSellPenguinId}?sellerId=${currentOwnerId}&hopePrice=${hopePrice}`, {
+            method: 'POST'
+        })
+        .then(async response => {
+            if (!response.ok) {
+                const errorMsg = await response.text();
+                throw new Error(errorMsg);
+            }
+            alert(await response.text());
+
+            closeSellModal();
+            switchScreen('storeScreen');
+        })
+        .catch(error => alert("🚫 분양 등록 실패: " + error.message));
+    }
+
+    // 💡 1. 수정하기 전 원본 데이터를 기억할 보관함(변수)
+    let originalPenguinData = {};
+
+    function openUpdateForm(id, species, island, sex, culmenLen, culmenDep, flipperLen, bodyMass, noteDate, noteContent) {
+        currentEditPenguinId = id;
+
+        // 기본 정보
+        document.getElementById('updateSpecies').value = species || '';
+        document.getElementById('updateIsland').value = island || '';
+        document.getElementById('updateSex').value = sex || '';
+
+        // 신체 정보 (값이 없으면 빈칸)
+        document.getElementById('updateCulmenLength').value = culmenLen || '';
+        document.getElementById('updateCulmenDepth').value = culmenDep || '';
+        document.getElementById('updateFlipperLength').value = flipperLen || '';
+        document.getElementById('updateBodyMass').value = bodyMass || '';
+
+        // 노트 날짜 (값이 없으면 '오늘 날짜'를 기본으로 자동 설정해 주는 센스!)
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('updateNoteDate').value = noteDate || today;
+
+        // 노트 내용
+        document.getElementById('updateNoteContent').value = noteContent || '';
+
+        // 💡 2. 입력칸에 셋팅된 값들을 원본 데이터로 저장!
+        originalPenguinData = {
+            species: document.getElementById('updateSpecies').value,
+            island: document.getElementById('updateIsland').value,
+            sex: document.getElementById('updateSex').value,
+            culmenLength: document.getElementById('updateCulmenLength').value,
+            culmenDepth: document.getElementById('updateCulmenDepth').value,
+            flipperLength: document.getElementById('updateFlipperLength').value,
+            bodyMass: document.getElementById('updateBodyMass').value,
+            noteDate: document.getElementById('updateNoteDate').value,
+            noteContent: document.getElementById('updateNoteContent').value
+        };
+
+        switchScreen('updateScreen');
+    }
+
+    function updatePenguin() {
+        // 💡 3. 현재 입력칸에 적혀있는 최신 데이터 모으기
+        const currentData = {
+            species: document.getElementById('updateSpecies').value,
+            island: document.getElementById('updateIsland').value,
+            sex: document.getElementById('updateSex').value,
+            culmenLength: document.getElementById('updateCulmenLength').value,
+            culmenDepth: document.getElementById('updateCulmenDepth').value,
+            flipperLength: document.getElementById('updateFlipperLength').value,
+            bodyMass: document.getElementById('updateBodyMass').value,
+            noteDate: document.getElementById('updateNoteDate').value,
+            noteContent: document.getElementById('updateNoteContent').value
+        };
+
+        // 💡 4. 원본과 현재 데이터 비교 (하나라도 다르면 true)
+        const isChanged = Object.keys(originalPenguinData).some(key => originalPenguinData[key] !== currentData[key]);
+
+        // 바뀐 내용이 하나도 없다면? -> 여기서 차단!
+        if (!isChanged) {
+            alert("수정사항이 없습니다.");
+            return; // ⛔ 아래 코드를 실행하지 않고 함수를 여기서 즉시 끝냄
+        }
+
+        // 바뀐 내용이 있다면 기존처럼 백엔드로 전송 (숫자 변환 포함)
+        const requestData = {
+            species: currentData.species,
+            island: currentData.island,
+            sex: currentData.sex,
+            culmenLength: parseFloat(currentData.culmenLength) || null,
+            culmenDepth: parseFloat(currentData.culmenDepth) || null,
+            flipperLength: parseFloat(currentData.flipperLength) || null,
+            bodyMass: parseFloat(currentData.bodyMass) || null,
+            noteDate: currentData.noteDate,
+            noteContent: currentData.noteContent,
+            ownerId: currentOwnerId
+        };
+
+        fetch(`/api/penguin/${currentEditPenguinId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
+        })
+        .then(async response => {
+            if (!response.ok) throw new Error(await response.text());
+            alert("펭귄 정보가 성공적으로 업데이트되었습니다! 🐧");
+            switchScreen('dashboardScreen');
+        })
+        .catch(error => alert("수정 오류: " + error.message));
+    }
+
+    function drawChart(canvasId, labelName, dataObj, barColor) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        if (myCharts[canvasId]) myCharts[canvasId].destroy();
+
+        myCharts[canvasId] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(dataObj),
+                datasets: [{ label: labelName + ' 마리 수', data: Object.values(dataObj), backgroundColor: barColor, borderRadius: 4, maxBarThickness: 50 }]
+            },
+            options: { responsive: true, scales: { y: { beginAtZero: true, grace: '30%', ticks: { stepSize: 1 } } } }
+        });
+    }
+
+    function loadMyPenguinsStats() {
+        fetch('/api/penguin/my/' + currentOwnerId)
+        .then(res => res.json())
+        .then(dataList => {
+            if (dataList.length === 0) {
+                alert("현재 입양한 펭귄이 없어 통계를 낼 수 없습니다. 상점에서 펭귄을 입양해 보세요!");
+                return;
+            }
+
+            const speciesCount = {}, islandCount = {}, sexCount = {};
+            dataList.forEach(penguin => {
+                const sp = penguin.species || 'Unknown';
+                const is = penguin.island || 'Unknown';
+                const sx = penguin.sex || 'Unknown';
+                speciesCount[sp] = (speciesCount[sp] || 0) + 1;
+                islandCount[is] = (islandCount[is] || 0) + 1;
+                sexCount[sx] = (sexCount[sx] || 0) + 1;
+            });
+
+            document.querySelector('#listScreen h2').innerText = "📊 내 펭귄 데이터 통계";
+
+            drawChart('speciesChart', '종 (Species)', speciesCount, '#3f7afc');
+            drawChart('islandChart', '서식지 (Island)', islandCount, '#28a745');
+            drawChart('sexChart', '성별 (Sex)', sexCount, '#dc3545');
+            switchScreen('listScreen');
+        })
+        .catch(error => alert("통계를 불러오지 못했습니다: " + error.message));
+    }
+
+    function loadAllPenguins() {
+        fetch('/api/penguins', { method: 'GET' })
+        .then(async response => {
+            if (!response.ok) throw new Error("데이터를 불러오는데 실패했습니다.");
+            return response.json();
+        })
+        .then(dataList => {
+            const speciesCount = {}, islandCount = {}, sexCount = {};
+            dataList.forEach(penguin => {
+                const sp = penguin.species || 'Unknown';
+                const is = penguin.island || 'Unknown';
+                const sx = penguin.sex || 'Unknown';
+                speciesCount[sp] = (speciesCount[sp] || 0) + 1;
+                islandCount[is] = (islandCount[is] || 0) + 1;
+                sexCount[sx] = (sexCount[sx] || 0) + 1;
+            });
+
+            document.querySelector('#listScreen h2').innerText = "📊 전체 펭귄 데이터 통계";
+
+            drawChart('speciesChart', '종 (Species)', speciesCount, '#3f7afc');
+            drawChart('islandChart', '서식지 (Island)', islandCount, '#28a745');
+            drawChart('sexChart', '성별 (Sex)', sexCount, '#dc3545');
+            switchScreen('listScreen');
+        })
+        .catch(error => alert(error.message));
+    }
+
+    // 6자리 칸 자동 이동 로직
+    function setupDigitInputs(className) {
+        const inputs = document.querySelectorAll(className);
+        inputs.forEach((input, index) => {
+            // 숫자 입력 시 다음 칸으로 이동
+            input.addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/[^0-9]/g, ''); // 숫자만 허용
+                if (e.target.value !== '' && index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                }
+            });
+            // 백스페이스 누를 시 이전 칸으로 이동
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
+                    inputs[index - 1].focus();
+                }
+            });
+        });
+    }
+
+    // 함수 실행 (페이지 로드 시 적용)
+    setupDigitInputs('.id-digit');
+    setupDigitInputs('.pw-digit');
+
+    // 관찰 일지 모달 열기 및 데이터 불러오기
+    // 차트가 겹쳐서 그려지는 것을 방지하기 위한 전역 변수
+    let recordChartInstance = null;
+
+    // 관찰 일지 모달 열기 및 데이터 불러오기
+    function openRecordModal(penguinId, species) {
+        document.getElementById('recordModalTitle').innerText = `🐧 No.${penguinId} [${species}] 관찰 일지`;
+        const container = document.getElementById('timelineContainer');
+
+        container.innerHTML = `<div class="timeline-empty"><i class="fa-solid fa-spinner fa-spin"></i> 기록을 불러오는 중...</div>`;
+        document.getElementById('recordModalOverlay').classList.remove('hidden');
+
+        fetch(`/api/penguin/${penguinId}/records`)
+        .then(res => res.json())
+        .then(records => {
+            if (!records || records.length === 0) {
+                container.innerHTML = `<div class="timeline-empty">아직 기록된 관찰 일지가 없습니다.<br>수정 버튼을 눌러 첫 기록을 남겨보세요!</div>`;
+                if(recordChartInstance) recordChartInstance.destroy(); // 데이터가 없으면 차트도 비우기
+                return;
+            }
+
+            // --- 📈 [1] 그래프 그리기 로직 ---
+            // 차트는 과거(왼쪽) -> 최신(오른쪽) 순서로 그려야 하므로 배열을 뒤집습니다.
+            const chartData = [...records].reverse();
+            const labels = chartData.map(r => r.noteDate || '미상');
+            const massData = chartData.map(r => r.bodyMass || null);
+            const flipperData = chartData.map(r => r.flipperLength || null);
+
+            // 기존에 그려진 차트가 있다면 지우고 새로 그립니다.
+            if (recordChartInstance) {
+                recordChartInstance.destroy();
+            }
+
+            const ctx = document.getElementById('penguinGrowthChart').getContext('2d');
+            recordChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '몸무게 (g)',
+                            data: massData,
+                            borderColor: '#28a745',
+                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                            yAxisID: 'y-mass', // 오른쪽 축 사용
+                            tension: 0.3, // 부드러운 곡선
+                            fill: true,
+                            pointRadius: 4
+                        },
+                        {
+                            label: '날개 길이 (mm)',
+                            data: flipperData,
+                            borderColor: '#3f7afc',
+                            yAxisID: 'y-mm', // 왼쪽 축 사용
+                            tension: 0.3,
+                            pointRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        'y-mass': {
+                            type: 'linear', position: 'right',
+                            title: { display: true, text: '몸무게 (g)', color: '#28a745', font: {size: 11} },
+                            grid: { drawOnChartArea: false } // 양쪽 격자가 겹치지 않게 처리
+                        },
+                        'y-mm': {
+                            type: 'linear', position: 'left',
+                            title: { display: true, text: '길이 (mm)', color: '#3f7afc', font: {size: 11} }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { boxWidth: 12, font: {size: 11} } }
+                    }
+                }
+            });
+
+            // --- 📝 [2] 하단 타임라인 리스트 생성 로직 ---
+            let html = '';
+            records.forEach(record => {
+                const cLen = record.culmenLength ? record.culmenLength + 'mm' : '-';
+                const cDep = record.culmenDepth ? record.culmenDepth + 'mm' : '-';
+                const fLen = record.flipperLength ? record.flipperLength + 'mm' : '-';
+                const mass = record.bodyMass ? record.bodyMass + 'g' : '-';
+                const note = record.noteContent ? record.noteContent.replace(/\n/g, '<br>') : '특이사항 없음';
+                const date = record.noteDate || '날짜 미상';
+
+                // 신체 정보는 이미 그래프로 보이므로, 타임라인에서는 작은 회색 글씨로 요약합니다.
+                html += `
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date"><i class="fa-regular fa-calendar-check"></i> ${date}</div>
+                    <div class="timeline-card">
+                        <p style="font-size: 12px; color: #888; margin-bottom: 8px;">📏 부리(${cLen}/${cDep}) | 날개(${fLen}) | 몸무게(${mass})</p>
+                        <p style="color: var(--text-main); line-height: 1.5;">${note}</p>
+                    </div>
+                </div>
+                `;
+            });
+            container.innerHTML = html;
+        })
+        .catch(err => {
+            container.innerHTML = `<div class="timeline-empty" style="color:red;">서버와 통신 중 오류가 발생했습니다.<br>${err.message}</div>`;
+        });
+    }
+
+    // 관찰 일지 모달 닫기
+    function closeRecordModal() {
+        document.getElementById('recordModalOverlay').classList.add('hidden');
+    }
+</script>
+</body>
+</html>
